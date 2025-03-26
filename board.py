@@ -80,7 +80,7 @@ class Board:
     def is_group_alive(self, group: Set[Tuple[int, int]]) -> bool:
 
         eyes = self.get_eyes(group)
-        if len(eyes) >= 1:
+        if len(eyes) >= 2:
             return True
 
 
