@@ -1,9 +1,10 @@
+
 import pygame
 from typing import Tuple
 from config import Config
 from board import Board
 from render import Renderer
-
+from game_controller import GameController
 
 class GoGame:
     def __init__(self):
@@ -13,6 +14,7 @@ class GoGame:
         self.clock = pygame.time.Clock()
 
         self.board = Board()
+        self.controller = GameController(self.board)
         self.renderer = Renderer(self.screen, pygame.font.Font(None, 24))
 
     def get_cell_from_mouse(self, pos: Tuple[int, int]) -> Tuple[int, int]:
@@ -26,23 +28,24 @@ class GoGame:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                elif event.type == pygame.MOUSEBUTTONDOWN and not self.board.game_over:
+                elif event.type == pygame.MOUSEBUTTONDOWN:
                     row, col = self.get_cell_from_mouse(event.pos)
-                    self.board.place_stone(row, col)
+                    self.controller.make_move(row, col)
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_u:
-                        self.board.undo()
+                        self.controller.undo()
                     elif event.key == pygame.K_r:
-                        self.board.reset()
-                    elif event.key == pygame.K_p and not self.board.game_over:
-                        self.board.pass_turn()
+                        self.controller.reset()
+                    elif event.key == pygame.K_p:
+                        self.controller.pass_turn()
 
-            self.renderer.render(self.board.board, self.board.calculate_score(),
-                                 self.board.game_over, self.board.get_winner())
+            self.renderer.render(self.board.board, self.controller.get_score(),
+                                 self.controller.is_game_over(), self.controller.get_winner())
             pygame.display.flip()
             self.clock.tick(60)
 
         pygame.quit()
 
 if __name__ == "__main__":
-    GoGame().run()
+    game = GoGame()
+    game.run()
