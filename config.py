@@ -16,3 +16,11 @@ class Config:
     GRAY = (150, 150, 150)
     BACKGROUND_COLOR = (200, 200, 200)
     KOMI = 6.5  # Traditional komi for White ( + KOMI score in white to cal who win game)
+
+    BUTTON_WIDTH = 80
+    BUTTON_HEIGHT = 50
+    BUTTONS_PER_ROW = 5
+    BUTTON_SPACING_X = 20
+    BUTTON_SPACING_Y = 20
+    BUTTON_START_X = 50
+    BUTTON_START_Y = 180
