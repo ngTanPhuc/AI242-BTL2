@@ -1,14 +1,14 @@
-import random
-
 import pygame
 from typing import Tuple, Optional
+
+from ai_controller import AIController
 from config import Config
 from board import Board
 from render import Renderer
 from game_controller import GameController
 from start_menu import StartMenu
 from button import Button
-from ai_controller import AIController
+import random
 
 
 class GoGame:
@@ -55,13 +55,15 @@ class GoGame:
 
     def draw_game(self, difficulty) -> None:
         self.board = Board()
-        self.ai = AIController(difficulty)  # Create the AI agent
         self.controller = GameController(self.board)
         self.renderer = Renderer(self.screen, pygame.font.Font(None, 24))
+        self.ai = AIController(difficulty)
 
     def run(self) -> None:
         is_start_menu = True
         running = True
+        pass_turn = 0
+        is_random_passed = False
         while running:
             events = pygame.event.get()
             for event in events:
@@ -75,7 +77,6 @@ class GoGame:
                     self.draw_game(difficulty)
                     is_start_menu = False
             else:  # If a difficulty is chosen, start the game
-                # Get events
                 for event in events:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         row, col = self.get_cell_from_mouse(event.pos)
@@ -91,24 +92,41 @@ class GoGame:
                 # Random makes move
                 if self.board.current_player == 1 and not self.controller.is_game_over():  # Random is Black
                     random_move = random.choice(self.board.get_legal_moves())
+                    # print(f"Random1: {random_move}")
                     if random_move:
                         random_row = random_move[0]
                         random_col = random_move[1]
-                        self.controller.make_move(random_row, random_col)
-                    else:
-                        self.controller.pass_turn()
+                        if not self.controller.make_move(random_row, random_col):
+                            self.controller.pass_turn()
+                            pass_turn += 1
+                            is_random_passed = True
+                            print("Random1 pass")
+                        else:
+                            pass_turn = 0
+                            is_random_passed = False
 
                 # AI makes move
                 if self.board.current_player == 2 and not self.controller.is_game_over():  # AI is White
-                    ai_move = self.ai.get_best_move(self.board)
-                    if ai_move:
-                        ai_row = ai_move[0]
-                        ai_col = ai_move[1]
-                        self.controller.make_move(ai_row, ai_col)
-                    else:
-                        self.controller.pass_turn()
+                    AI_move = self.ai.get_best_move(self.board)
+                    black_score, white_score = self.controller.get_score()
+                    if AI_move:
+                        AI_row = AI_move[0]
+                        AI_col = AI_move[1]
+                        if (not self.controller.make_move(AI_row, AI_col) or
+                                (white_score > black_score and is_random_passed)):
+                            self.controller.pass_turn()
+                            pass_turn += 1
+                            print("AI Pass")
+                        else:
+                            pass_turn = 0
 
-                # Render game
+                # Check if 2 players passed turn
+                if pass_turn == 2:
+                    print("GAME OVER!!!")
+                    self.board.game_over = True
+                    print(self.board.get_winner())
+                    running = False
+
                 self.renderer.render(self.board.board, self.controller.get_score(),
                                      self.controller.is_game_over(), self.controller.get_winner())
 
