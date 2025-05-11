@@ -1,6 +1,7 @@
 import pygame
+import asyncio
+import threading
 from typing import Tuple, Optional
-
 from ai_controller import AIController
 from config import Config
 from board import Board
@@ -9,7 +10,6 @@ from game_controller import GameController
 from start_menu import StartMenu
 from button import Button
 import random
-
 
 class GoGame:
     def __init__(self):
@@ -22,6 +22,9 @@ class GoGame:
         self.controller = None
         self.renderer = None
         self.ai = None
+        self.loop = asyncio.new_event_loop()
+        self.asyncio_thread = threading.Thread(target=self.loop.run_forever)
+        self.asyncio_thread.start()
 
     def get_cell_from_mouse(self, pos: Tuple[int, int]) -> Tuple[int, int]:
         x, y = pos
@@ -29,18 +32,13 @@ class GoGame:
                 round((x - Config.CELL_SIZE // 2) / Config.CELL_SIZE))
 
     def draw_start_menu(self) -> Optional[int]:
-        # Display Start Menu
         startMenu = StartMenu(self.screen, pygame.font.Font(None, 24))
-
-        # Display buttons
         button_lst = []
         for i in range(10):
             row = i // Config.BUTTONS_PER_ROW
             col = i % Config.BUTTONS_PER_ROW
-
             x = Config.BUTTON_START_X + col * (Config.BUTTON_WIDTH + Config.BUTTON_SPACING_X)
             y = Config.BUTTON_START_Y + row * (Config.BUTTON_HEIGHT + Config.BUTTON_SPACING_Y)
-
             button = Button(self.screen, x, y, str(i + 1))
             button_lst.append(button)
 
@@ -50,7 +48,6 @@ class GoGame:
             clicked = button.get_difficulty()
             if clicked is not None:
                 return clicked
-
         return None
 
     def draw_game(self, difficulty) -> None:
@@ -70,13 +67,13 @@ class GoGame:
                 if event.type == pygame.QUIT:
                     running = False
 
-            if is_start_menu:  # Start Menu
+            if is_start_menu:
                 difficulty = self.draw_start_menu()
                 if difficulty is not None:
                     print("Choose difficulty:", difficulty)
                     self.draw_game(difficulty)
                     is_start_menu = False
-            else:  # If a difficulty is chosen, start the game
+            else:
                 for event in events:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         row, col = self.get_cell_from_mouse(event.pos)
@@ -89,13 +86,10 @@ class GoGame:
                         elif event.key == pygame.K_p:
                             self.controller.pass_turn()
 
-                # Random makes move
-                if self.board.current_player == 1 and not self.controller.is_game_over():  # Random is Black
+                if self.board.current_player == 1 and not self.controller.is_game_over():
                     random_move = random.choice(self.board.get_legal_moves())
-                    # print(f"Random1: {random_move}")
                     if random_move:
-                        random_row = random_move[0]
-                        random_col = random_move[1]
+                        random_row, random_col = random_move
                         if not self.controller.make_move(random_row, random_col):
                             self.controller.pass_turn()
                             pass_turn += 1
@@ -105,13 +99,12 @@ class GoGame:
                             pass_turn = 0
                             is_random_passed = False
 
-                # AI makes move
-                if self.board.current_player == 2 and not self.controller.is_game_over():  # AI is White
-                    AI_move = self.ai.get_best_move(self.board)
-                    black_score, white_score = self.controller.get_score()
+                if self.board.current_player == 2 and not self.controller.is_game_over():
+                    future = asyncio.run_coroutine_threadsafe(self.ai.get_best_move(self.board), self.loop)
+                    AI_move = future.result()
                     if AI_move:
-                        AI_row = AI_move[0]
-                        AI_col = AI_move[1]
+                        AI_row, AI_col = AI_move
+                        black_score, white_score = self.controller.get_score()
                         if (not self.controller.make_move(AI_row, AI_col) or
                                 (white_score > black_score and is_random_passed)):
                             self.controller.pass_turn()
@@ -120,7 +113,6 @@ class GoGame:
                         else:
                             pass_turn = 0
 
-                # Check if 2 players passed turn
                 if pass_turn == 2:
                     print("GAME OVER!!!")
                     self.board.game_over = True
@@ -133,8 +125,9 @@ class GoGame:
             pygame.display.flip()
             self.clock.tick(60)
 
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        self.asyncio_thread.join()
         pygame.quit()
-
 
 if __name__ == "__main__":
     game = GoGame()

@@ -1,4 +1,4 @@
-
+#board.py
 import copy
 from typing import Tuple, Set, List, Optional
 from config import Config

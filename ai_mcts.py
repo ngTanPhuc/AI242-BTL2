@@ -1,7 +1,8 @@
+# ai_mcts.py
+import asyncio
 import math
 import random
 import copy
-from concurrent.futures import ThreadPoolExecutor
 from board import Board
 from config import Config
 
@@ -25,7 +26,7 @@ class MCTSNode:
         ]
         return max(choices, key=lambda x: x[1])[0]
 
-def simulate(board: Board):
+async def simulate(board: Board):
     sim_board = copy.deepcopy(board)
     while not sim_board.game_over:
         legal_moves = sim_board.get_legal_moves()
@@ -40,20 +41,19 @@ def simulate(board: Board):
 class MCTS:
     def __init__(self, num_simulations=500, threads=4):
         self.num_simulations = num_simulations
-        self.threads = threads
+        self.threads = threads  # Không còn cần thiết với asyncio, nhưng giữ lại cho tương thích
 
-    def search(self, board: Board):
+    async def search(self, board: Board):
         root = MCTSNode(copy.deepcopy(board))
 
-        with ThreadPoolExecutor(max_workers=self.threads) as executor:
-            futures = [executor.submit(self.simulate_once, root) for _ in range(self.num_simulations)]
-            for future in futures:
-                future.result()
+        # Chạy các mô phỏng không đồng bộ
+        tasks = [self.simulate_once(root) for _ in range(self.num_simulations)]
+        await asyncio.gather(*tasks)
 
         best_move = max(root.children, key=lambda c: c.visits).move
         return best_move
 
-    def simulate_once(self, root):
+    async def simulate_once(self, root):
         node = root
 
         while node.children and node.is_fully_expanded():
@@ -68,7 +68,7 @@ class MCTS:
             node.children.append(child_node)
             node = child_node
 
-        result = simulate(node.board)
+        result = await simulate(node.board)
         self.backpropagate(node, result)
 
     def backpropagate(self, node, result):

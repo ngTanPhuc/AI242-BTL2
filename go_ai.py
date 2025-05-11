@@ -1,3 +1,4 @@
+#go_ai.py
 import random
 import copy
 from board import Board
